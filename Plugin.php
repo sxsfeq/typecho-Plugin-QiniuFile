@@ -1,13 +1,17 @@
 <?php
 /**
- * 将 Typecho 的附件上传至七牛云存储中。该插件仅为满足个人需求而制作，如有考虑不周的地方，可自行修改。<a href="https://github.com/abelyao/Typecho-QiniuFile" target="_blank">源代码参考</a> &amp; <a href="https://portal.qiniu.com/signup?code=3li4q4loavdxu" target="_blank">注册七牛</a>
- * 
+ * 将 Typecho 的附件上传至七牛云存储中。<a href="https://github.com/lichaoxilcx/typecho-Plugin-QiniuFile" target="_blank">源代码参考</a> &amp; <a href="https://portal.qiniu.com/signup?code=3li4q4loavdxu" target="_blank">注册七牛</a>
+ *
  * @package Qiniu File
- * @author abelyao
- * @version 1.2.0
- * @link http://www.abelyao.com/
- * @date 2014-02-22
+ * @author LiCxi
+ * @version 1.0.0
+ * @link http://lichaoxi.com/
+ * @date 2018-3-30
  */
+require __DIR__ . '/sdk/autoload.php';
+
+use \Qiniu\Storage\UploadManager;
+use \Qiniu\Auth;
 
 class QiniuFile_Plugin implements Typecho_Plugin_Interface
 {
@@ -21,14 +25,14 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         return _t('插件已经激活，需先配置七牛的信息！');
     }
 
-    
+
     // 禁用插件
     public static function deactivate()
     {
         return _t('插件已被禁用');
     }
 
-    
+
     // 插件配置面板
     public static function config(Typecho_Widget_Helper_Form $form)
     {
@@ -44,8 +48,8 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         $domain = new Typecho_Widget_Helper_Form_Element_Text('domain', null, 'http://', _t('绑定域名：'), _t('以 http:// 开头，结尾不要加 / ！'));
         $form->addInput($domain->addRule('required', _t('请填写空间绑定的域名！'))->addRule('url', _t('您输入的域名格式错误！')));
 
-        $savepath = new Typecho_Widget_Helper_Form_Element_Text('savepath', null, '{year}/{month}/', _t('保存路径格式：'), _t('附件保存路径的格式，默认为 Typecho 的 {year}/{month}/ 格式，注意<strong style="color:#C33;">前面不要加 / </strong>！<br />可选参数：{year} 年份、{month} 月份、{day} 日期'));
-        $form->addInput($savepath->addRule('required', _t('请填写保存路径格式！')));
+        // $savepath = new Typecho_Widget_Helper_Form_Element_Text('savepath', null, '{year}/{month}/', _t('保存路径格式：'), _t('附件保存路径的格式，默认为 Typecho 的 {year}/{month}/ 格式，注意<strong style="color:#C33;">前面不要加 / </strong>！<br />可选参数：{year} 年份、{month} 月份、{day} 日期'));
+        // $form->addInput($savepath->addRule('required', _t('请填写保存路径格式！')));
     }
 
 
@@ -62,34 +66,20 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
     }
 
 
-    // 初始化七牛SDK
-    public static function initSDK($accesskey, $sercetkey)
-    {
-        // 调用 SDK 设置密钥
-        require_once 'sdk/io.php';
-        require_once 'sdk/rs.php';
-        Qiniu_SetKeys($accesskey, $sercetkey);
-    }
-
-
     // 删除文件
     public static function deleteFile($filepath)
     {
-        // 获取插件配置
-        $option = self::getConfig();
-
-        // 初始化 SDK
-        self::initSDK($option->accesskey, $option->sercetkey);
-
-        // 删除
-        $client = new Qiniu_MacHttpClient(null);
-        return Qiniu_RS_Delete($client, $option->bucket, $filepath);
+        // // 获取插件配置
+        // $option = self::getConfig();
+        //
+        return true;
     }
 
 
     // 上传文件
     public static function uploadFile($file, $content = null)
     {
+
         // 获取上传文件
         if (empty($file['name'])) return false;
 
@@ -103,38 +93,32 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         $date = new Typecho_Date(Typecho_Widget::widget('Widget_Options')->gmtTime);
 
         // 保存位置
-        $savepath = preg_replace(array('/\{year\}/', '/\{month\}/', '/\{day\}/'), array($date->year, $date->month, $date->day), $option->savepath);
-        $savename = $savepath . sprintf('%u', crc32(uniqid())) . '.' . $ext;
-        if (isset($content))
-        {
-            $savename = $content['attachment']->path;
-            self::deleteFile($savename);
-        }
+        // $savepath = preg_replace(array('/\{year\}/', '/\{month\}/', '/\{day\}/'), array($date->year, $date->month, $date->day), $option->savepath);
+        // $savename = $savepath . sprintf('%u', crc32(uniqid())) . '.' . $ext;
+        // if (isset($content))
+        // {
+        //     $savename = $content['attachment']->path;
+        //     self::deleteFile($savename);
+        // }
 
         // 上传文件
         $filename = $file['tmp_name'];
         if (!isset($filename)) return false;
 
-        // 初始化 SDK
-        self::initSDK($option->accesskey, $option->sercetkey);
+        $upManager = new Qiniu\Storage\UploadManager();
+        $auth = new Qiniu\Auth($option->accesskey, $option->sercetkey);
+        $token = $auth->uploadToken($option->bucket);
+        list($ret, $error) = $upManager->putFile($token, $file['name'], $filename);
 
-        // 上传凭证
-        $policy = new Qiniu_RS_PutPolicy($option->bucket);
-        $token = $policy->Token(null);
-        $extra = new Qiniu_PutExtra();
-        $extra->Crc32 = 1;
-
-        // 上传
-        list($result, $error) = Qiniu_PutFile($token, $savename, $filename, $extra);
         if ($error == null)
         {
             return array
             (
                 'name'  =>  $file['name'],
-                'path'  =>  $savename,
+                'path'  =>  $file['name'],
                 'size'  =>  $file['size'],
                 'type'  =>  $ext,
-                'mime'  =>  Typecho_Common::mimeContentType($savename)
+                'mime'  =>  Typecho_Common::mimeContentType($filename)
             );
         }
         else return false;
