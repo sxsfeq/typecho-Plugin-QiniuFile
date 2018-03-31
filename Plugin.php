@@ -48,8 +48,11 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         $domain = new Typecho_Widget_Helper_Form_Element_Text('domain', null, 'http://', _t('绑定域名：'), _t('以 http:// 开头，结尾不要加 / ！'));
         $form->addInput($domain->addRule('required', _t('请填写空间绑定的域名！'))->addRule('url', _t('您输入的域名格式错误！')));
 
-        // $savepath = new Typecho_Widget_Helper_Form_Element_Text('savepath', null, '{year}/{month}/', _t('保存路径格式：'), _t('附件保存路径的格式，默认为 Typecho 的 {year}/{month}/ 格式，注意<strong style="color:#C33;">前面不要加 / </strong>！<br />可选参数：{year} 年份、{month} 月份、{day} 日期'));
-        // $form->addInput($savepath->addRule('required', _t('请填写保存路径格式！')));
+        $savepath = new Typecho_Widget_Helper_Form_Element_Text('savepath', null, 'blog/typecho/', _t('保存路径前缀'), _t('请填写保存路径格前缀，以便数据管理和迁移'));
+        $form->addInput($savepath);
+
+        $imgstyle = new Typecho_Widget_Helper_Form_Element_Text('imgstyle', null, '', _t('图片自定义样式名称：'), _t('请到七牛云控制台自定义图片样式，此处填写样式名称'));
+        $form->addInput($imgstyle);
     }
 
 
@@ -108,14 +111,14 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         $upManager = new Qiniu\Storage\UploadManager();
         $auth = new Qiniu\Auth($option->accesskey, $option->sercetkey);
         $token = $auth->uploadToken($option->bucket);
-        list($ret, $error) = $upManager->putFile($token, $file['name'], $filename);
+        list($ret, $error) = $upManager->putFile($token, $option->savepath . $file['name'], $filename);
 
         if ($error == null)
         {
             return array
             (
                 'name'  =>  $file['name'],
-                'path'  =>  $file['name'],
+                'path'  =>  $option->savepath . $file['name'].( $option->imgstyle == '' ? '' : '-'.$option->imgstyle ),
                 'size'  =>  $file['size'],
                 'type'  =>  $ext,
                 'mime'  =>  Typecho_Common::mimeContentType($filename)
