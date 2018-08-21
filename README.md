@@ -6,10 +6,10 @@ Qiniu File 是一款 Typecho 的七牛云存储插件，可将 Typecho 的文件
 基于原作者的代码上继续开发
 
 #### 使用方法：
-第一步：下载本插件，放在 `usr/plugins/` 目录中；
-第二步：激活插件；
-第三步：填写空间名称、Access Key、Secret Key、域名 等配置；
-第四步：完成。
+- 第一步：下载本插件，放在 `usr/plugins/` 目录中，改名为 QiniuFile；
+- 第二步：激活插件；
+- 第三步：填写空间名称、Access Key、Secret Key、域名 等配置；
+- 第四步：完成。
 
 #### 与我联系：
 作者：LiCxi & abelyao    
