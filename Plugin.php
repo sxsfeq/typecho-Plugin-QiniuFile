@@ -111,14 +111,17 @@ class QiniuFile_Plugin implements Typecho_Plugin_Interface
         $upManager = new Qiniu\Storage\UploadManager();
         $auth = new Qiniu\Auth($option->accesskey, $option->sercetkey);
         $token = $auth->uploadToken($option->bucket);
-        list($ret, $error) = $upManager->putFile($token, $option->savepath . $file['name'], $filename);
+		
+        $uploadurl = $option->savepath . date("Y/m/") . time() . '.' . $ext;
+		
+        list($ret, $error) = $upManager->putFile($token, $uploadurl, $filename);
 
         if ($error == null)
         {
             return array
             (
                 'name'  =>  $file['name'],
-                'path'  =>  $option->savepath . $file['name'].( $option->imgstyle == '' ? '' : '-'.$option->imgstyle ),
+                'path'  =>  $uploadurl . ( $option->imgstyle == '' ? '' : '-'.$option->imgstyle ),
                 'size'  =>  $file['size'],
                 'type'  =>  $ext,
                 'mime'  =>  Typecho_Common::mimeContentType($filename)
